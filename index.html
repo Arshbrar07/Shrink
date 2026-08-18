@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>$SHRINK — the compaction protocol</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#070a08;
+    --surface:#0c1310;
+    --surface-2:#101a15;
+    --border:#1b2a21;
+    --border-soft:#141f19;
+    --text:#eef7f1;
+    --text-dim:#8fa79b;
+    --text-faint:#4d6357;
+    --accent:#34d976;
+    --accent-soft:#1c8a4c;
+    --accent-dim:#153b28;
+    --accent-glow:rgba(52,217,118,0.28);
+    --disp:'Space Grotesk', sans-serif;
+    --body:'Inter', sans-serif;
+    --mono:'JetBrains Mono', ui-monospace, monospace;
+    --radius:7px;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{background:var(--bg); color:var(--text); font-family:var(--body); -webkit-font-smoothing:antialiased; line-height:1.5;}
+  @media (prefers-reduced-motion: reduce){*{animation:none !important; transition:none !important;}}
+  a{color:inherit; text-decoration:none;}
+  .wrap{max-width:1180px; margin:0 auto; padding:0 32px;}
+  @media (max-width:600px){.wrap{padding:0 20px;}}
+
+  ::selection{background:var(--accent); color:#04150a;}
+
+  /* faint background grid, very quiet */
+  .field{
+    position:fixed; inset:0; z-index:0; pointer-events:none;
+    background-image:
+      radial-gradient(circle at 18% 8%, rgba(52,217,118,0.06), transparent 32%),
+      radial-gradient(circle at 85% 78%, rgba(52,217,118,0.04), transparent 38%);
+  }
+
+  /* ---------- logo mark ---------- */
+  .mark{display:inline-block;}
+  .mark svg{display:block;}
+
+  /* ---------- NAV ---------- */
+  header{position:sticky; top:0; z-index:60; background:rgba(7,10,8,0.82); backdrop-filter:blur(10px); border-bottom:1px solid var(--border-soft);}
+  .nav{display:flex; align-items:center; justify-content:space-between; padding:18px 32px; max-width:1180px; margin:0 auto;}
+  .brand{display:flex; align-items:center; gap:11px;}
+  .brand .mark{width:26px; height:26px;}
+  .brand .word{font-family:var(--mono); font-weight:700; font-size:17px; letter-spacing:0.2px;}
+  .brand .word .cash{color:var(--accent);}
+  .navlinks{display:flex; gap:2px; font-family:var(--mono); font-size:12.5px;}
+  .navlinks a{color:var(--text-dim); padding:9px 14px; border-radius:5px; transition:.15s;}
+  .navlinks a:hover{color:var(--text); background:var(--surface-2);}
+  @media (max-width:840px){.navlinks{display:none;}}
+  .nav-cta{display:flex; align-items:center; gap:10px;}
+  .btn{font-family:var(--mono); font-weight:600; font-size:12.5px; letter-spacing:0.2px; padding:10px 18px; border-radius:6px; cursor:pointer; border:1px solid transparent; transition:.15s; display:inline-flex; align-items:center; gap:7px;}
+  .btn-primary{background:var(--accent); color:#04150a;}
+  .btn-primary:hover{background:#4de88a; box-shadow:0 0 0 4px var(--accent-glow);}
+  .btn-line{border-color:var(--border); color:var(--text-dim);}
+  .btn-line:hover{border-color:var(--accent-soft); color:var(--text);}
+
+  /* ---------- HERO ---------- */
+  .hero{position:relative; z-index:2; padding:88px 0 60px; border-bottom:1px solid var(--border-soft);}
+  .hero-grid{display:grid; grid-template-columns:1.05fr 0.95fr; gap:56px; align-items:center;}
+  @media (max-width:900px){.hero-grid{grid-template-columns:1fr; gap:44px;}}
+  .eyebrow{display:inline-flex; align-items:center; gap:8px; font-family:var(--mono); font-size:11.5px; color:var(--accent); letter-spacing:1.5px; text-transform:uppercase; border:1px solid var(--accent-dim); padding:6px 12px; border-radius:20px; margin-bottom:24px; background:rgba(52,217,118,0.05);}
+  .eyebrow .dot{width:6px; height:6px; border-radius:50%; background:var(--accent); box-shadow:0 0 8px var(--accent);}
+  h1{font-family:var(--disp); font-weight:700; font-size:clamp(38px,4.6vw,58px); line-height:1.06; letter-spacing:-1.2px;}
+  h1 .cash{color:var(--accent);}
+  .lede{font-size:16.5px; color:var(--text-dim); max-width:480px; margin-top:20px; line-height:1.65;}
+  .hero-ctas{display:flex; gap:12px; margin-top:32px; flex-wrap:wrap;}
+  .hero-meta{display:flex; gap:28px; margin-top:40px; flex-wrap:wrap;}
+  .hm{font-family:var(--mono);}
+  .hm .v{font-size:20px; font-weight:700; color:var(--text);}
+  .hm .l{font-size:10.5px; color:var(--text-faint); letter-spacing:1px; text-transform:uppercase; margin-top:3px;}
+
+  /* signature chart */
+  .chart-card{background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:26px 26px 20px;}
+  .chart-head{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:6px;}
+  .chart-title{font-family:var(--mono); font-size:11.5px; color:var(--text-dim); letter-spacing:1px; text-transform:uppercase;}
+  .chart-live{font-family:var(--mono); font-size:10.5px; color:var(--accent); display:flex; align-items:center; gap:6px;}
+  .chart-live .dot{width:5px; height:5px; border-radius:50%; background:var(--accent); animation:blink 1.5s steps(2) infinite;}
+  @keyframes blink{50%{opacity:.2;}}
+  .curve-path{stroke-dasharray:900; stroke-dashoffset:900; animation:draw 2.4s ease-out forwards;}
+  @keyframes draw{to{stroke-dashoffset:0;}}
+  .curve-dot{offset-path:path('M20,40 C120,42 180,60 260,120 C330,175 360,230 380,290'); animation:travel 3.6s linear infinite; animation-delay:2.4s;}
+  @keyframes travel{from{offset-distance:0%;}to{offset-distance:100%;}}
+  .chart-axis-label{font-family:var(--mono); font-size:9.5px; fill:var(--text-faint); letter-spacing:0.5px;}
+  .chart-foot{display:flex; justify-content:space-between; margin-top:10px; font-family:var(--mono); font-size:10.5px; color:var(--text-faint);}
+
+  /* ---------- STATS ---------- */
+  .stats{position:relative; z-index:2; border-bottom:1px solid var(--border-soft);}
+  .stats-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:1px; background:var(--border-soft);}
+  .stat{background:var(--bg); padding:26px 24px;}
+  .stat .val{font-family:var(--mono); font-size:24px; font-weight:700; color:var(--text);}
+  .stat .lbl{font-size:11px; color:var(--text-faint); letter-spacing:0.5px; margin-top:6px;}
+  @media (max-width:700px){.stats-grid{grid-template-columns:repeat(2,1fr);}}
+
+  /* ---------- SECTION GENERIC ---------- */
+  .section{padding:88px 0; border-bottom:1px solid var(--border-soft); position:relative; z-index:2;}
+  .section-head{display:flex; justify-content:space-between; align-items:flex-end; gap:24px; margin-bottom:46px; flex-wrap:wrap;}
+  .section-tag{font-family:var(--mono); font-size:11px; color:var(--accent); letter-spacing:1.5px; text-transform:uppercase; margin-bottom:10px;}
+  .section-head h2{font-family:var(--disp); font-weight:700; font-size:clamp(26px,3.4vw,34px); letter-spacing:-0.6px;}
+  .section-desc{color:var(--text-dim); font-size:14.5px; max-width:360px;}
+
+  /* ---------- LOOP STEPS (real sequence, numbered legitimately) ---------- */
+  .steps{display:grid; grid-template-columns:repeat(3,1fr); gap:1px; background:var(--border-soft); border:1px solid var(--border-soft); border-radius:12px; overflow:hidden;}
+  .step{background:var(--surface); padding:32px 28px; position:relative;}
+  .step .n{font-family:var(--mono); font-size:12px; color:var(--accent-soft); letter-spacing:1px;}
+  .step h4{font-family:var(--disp); font-weight:600; font-size:19px; margin:12px 0 10px;}
+  .step p{font-size:13.5px; color:var(--text-dim); line-height:1.65;}
+  .step-icon{width:34px; height:34px; margin-bottom:16px;}
+  @media (max-width:800px){.steps{grid-template-columns:1fr;}}
+
+  /* ---------- TRUST GRID ---------- */
+  .trust-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:14px;}
+  @media (max-width:900px){.trust-grid{grid-template-columns:repeat(2,1fr);}}
+  @media (max-width:520px){.trust-grid{grid-template-columns:1fr;}}
+  .tcard{background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:22px 20px;}
+  .tcard .ic{width:22px; height:22px; margin-bottom:14px; color:var(--accent);}
+  .tcard h5{font-family:var(--disp); font-weight:600; font-size:14.5px; margin-bottom:8px;}
+  .tcard p{font-size:12.5px; color:var(--text-dim); line-height:1.6;}
+
+  /* ---------- LOG TABLE ---------- */
+  .log-card{background:var(--surface); border:1px solid var(--border); border-radius:10px; overflow:hidden;}
+  .log-head-row, .log-row{display:grid; grid-template-columns:130px 1fr 140px 110px; gap:12px; padding:14px 22px; align-items:center;}
+  .log-head-row{font-family:var(--mono); font-size:10px; color:var(--text-faint); letter-spacing:1px; text-transform:uppercase; border-bottom:1px solid var(--border);}
+  .log-row{font-family:var(--mono); font-size:12.5px; color:var(--text-dim); border-bottom:1px solid var(--border-soft);}
+  .log-row:last-child{border-bottom:none;}
+  .log-row .evt{color:var(--accent);}
+  .log-row .amt{color:var(--text);}
+  @media (max-width:700px){.log-head-row{display:none;} .log-row{grid-template-columns:1fr 1fr; font-size:11.5px;}}
+
+  /* ---------- FAQ ---------- */
+  .faq{border-top:1px solid var(--border-soft);}
+  details{border-bottom:1px solid var(--border-soft);}
+  summary{list-style:none; cursor:pointer; padding:22px 0; display:flex; justify-content:space-between; align-items:center; font-family:var(--disp); font-weight:600; font-size:15.5px;}
+  summary::-webkit-details-marker{display:none;}
+  summary .plus{font-family:var(--mono); color:var(--accent-soft); font-size:18px; transition:transform .2s;}
+  details[open] summary .plus{transform:rotate(45deg); color:var(--accent);}
+  .faq-a{padding:0 0 24px; color:var(--text-dim); font-size:13.5px; line-height:1.7; max-width:640px;}
+
+  /* ---------- FOOTER ---------- */
+  footer{padding:44px 0; position:relative; z-index:2;}
+  .foot-row{display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:20px;}
+  .foot-brand{display:flex; align-items:center; gap:10px;}
+  .foot-brand .mark{width:20px; height:20px;}
+  .foot-brand span{font-family:var(--mono); font-size:13px; color:var(--text-dim);}
+  .foot-links{display:flex; gap:18px; font-family:var(--mono); font-size:12px;}
+  .foot-links a{color:var(--text-dim);}
+  .foot-links a:hover{color:var(--accent);}
+</style>
+</head>
+<body>
+
+<div class="field"></div>
+
+<header>
+  <div class="nav">
+    <div class="brand">
+      <span class="mark">
+        <svg viewBox="0 0 600 600" xmlns="http://www.w3.org/2000/svg">
+          <path d="M 70.00 116.00 L 530.00 116.00 L 530.00 484.00 L 235.60 484.00 L 235.60 248.48 L 424.02 248.48 L 424.02 399.21 L 303.43 399.21 L 303.43 302.74 L 380.60 302.74 L 380.60 364.48 L 331.21 364.48 L 331.21 324.97" fill="none" stroke="#34d976" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="331.21" cy="324.97" r="26" fill="#34d976"/>
+        </svg>
+      </span>
+      <span class="word">$<span class="cash">SHRINK</span></span>
+    </div>
+    <nav class="navlinks">
+      <a href="#protocol">Protocol</a>
+      <a href="#loop">Mechanism</a>
+      <a href="#verify">Verification</a>
+      <a href="#log">Burn log</a>
+      <a href="#faq">FAQ</a>
+    </nav>
+    <div class="nav-cta">
+      <a class="btn btn-line" href="#">Docs</a>
+      <a class="btn btn-primary" href="#">Buy $SHRINK</a>
+    </div>
+  </div>
+</header>
+
+<section class="hero" id="protocol">
+  <div class="wrap">
+    <div class="hero-grid">
+      <div>
+        <div class="eyebrow"><span class="dot"></span>70% burned permanently — and counting</div>
+        <h1>The supply only<br>moves <span class="cash">one way.</span></h1>
+        <p class="lede">70% of total supply is committed to permanent burn — and once that target is hit, the loop doesn't stop. $SHRINK runs a continuous fractional burn: a fixed share of the pool is compacted every cycle, so supply keeps decaying asymptotically toward zero — verifiably, without an admin key.</p>
+        <div class="hero-ctas">
+          <a class="btn btn-primary" href="https://pump.fun/explore" target="_blank" rel="noopener noreferrer">Buy on pump.fun</a>
+          <a class="btn btn-line" href="#log">View burn log</a>
+        </div>
+        <div class="hero-meta">
+          <div class="hm"><div class="v">70%</div><div class="l">committed to permanent burn</div></div>
+          <div class="hm"><div class="v">—</div><div class="l">supply remaining</div></div>
+          <div class="hm"><div class="v">continuous</div><div class="l">burning never stops</div></div>
+        </div>
+      </div>
+
+      <div class="chart-card">
+        <div class="chart-head">
+          <div class="chart-title">supply decay — model</div>
+          <div class="chart-live"><span class="dot"></span>live</div>
+        </div>
+        <svg viewBox="0 0 400 300" width="100%" height="auto" style="overflow:visible;">
+          <line x1="20" y1="290" x2="380" y2="290" stroke="#1b2a21" stroke-width="1"/>
+          <line x1="20" y1="20" x2="20" y2="290" stroke="#1b2a21" stroke-width="1"/>
+          <text x="20" y="14" class="chart-axis-label">SUPPLY</text>
+          <text x="352" y="304" class="chart-axis-label">CYCLES</text>
+          <path class="curve-path" d="M20,40 C120,42 180,60 260,120 C330,175 360,230 380,290" fill="none" stroke="#34d976" stroke-width="2.5" stroke-linecap="round"/>
+          <path d="M20,40 C120,42 180,60 260,120 C330,175 360,230 380,290 L380,290 L20,290 Z" fill="url(#curveFill)" opacity="0.5"/>
+          <defs>
+            <linearGradient id="curveFill" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#34d976" stop-opacity="0.16"/>
+              <stop offset="100%" stop-color="#34d976" stop-opacity="0"/>
+            </linearGradient>
+          </defs>
+          <circle class="curve-dot" r="4" fill="#34d976" style="filter:drop-shadow(0 0 5px #34d976);"/>
+          <line x1="20" y1="290" x2="380" y2="290" stroke="#2a3b31" stroke-width="1" stroke-dasharray="2 4"/>
+        </svg>
+        <div class="chart-foot">
+          <span>t = 0</span>
+          <span>70% burn target — loop continues after</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="stats">
+  <div class="wrap" style="padding:0;">
+    <div class="stats-grid">
+      <div class="stat"><div class="val">70%</div><div class="lbl">PERMANENTLY BURNED SUPPLY TARGET</div></div>
+      <div class="stat"><div class="val">—</div><div class="lbl">SUPPLY REMAINING</div></div>
+      <div class="stat"><div class="val">—</div><div class="lbl">CYCLES EXECUTED</div></div>
+      <div class="stat"><div class="val">—</div><div class="lbl">HOLDERS</div></div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="loop">
+  <div class="wrap">
+    <div class="section-head">
+      <div>
+        <div class="section-tag">mechanism</div>
+        <h2>How the loop runs</h2>
+      </div>
+      <p class="section-desc">Three steps, repeating on a fixed interval — the same cycle, indefinitely. 70% of supply is committed to permanent burn, and the loop doesn't stop there.</p>
+    </div>
+    <div class="steps">
+      <div class="step">
+        <svg class="step-icon" viewBox="0 0 40 40" fill="none"><rect x="4" y="4" width="32" height="32" rx="3" stroke="#34d976" stroke-width="2"/><path d="M14 20 H26 M20 14 V26" stroke="#34d976" stroke-width="2" stroke-linecap="round"/></svg>
+        <div class="n">01 / SEND</div>
+        <h4>Tokens enter the pool</h4>
+        <p>Holders or treasury route $SHRINK to the compaction wallet — a public address anyone can watch.</p>
+      </div>
+      <div class="step">
+        <svg class="step-icon" viewBox="0 0 40 40" fill="none"><rect x="8" y="8" width="24" height="24" rx="3" stroke="#34d976" stroke-width="2"/><rect x="15" y="15" width="10" height="10" rx="1.5" stroke="#34d976" stroke-width="2"/></svg>
+        <div class="n">02 / COMPACT</div>
+        <h4>A fixed share is burned</h4>
+        <p>A set percentage of the pool's balance is sent to a dead address on a fixed interval. No discretion involved.</p>
+      </div>
+      <div class="step">
+        <svg class="step-icon" viewBox="0 0 40 40" fill="none"><path d="M12 16a8 8 0 0 1 15-4M28 24a8 8 0 0 1-15 4" stroke="#34d976" stroke-width="2" stroke-linecap="round"/><path d="M27 8v4h-4M13 32v-4h4" stroke="#34d976" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <div class="n">03 / REPEAT</div>
+        <h4>The remainder resets</h4>
+        <p>What's left waits for the next cycle — smaller each time, curving toward zero without ever reaching it.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="verify">
+  <div class="wrap">
+    <div class="section-head">
+      <div>
+        <div class="section-tag">verification</div>
+        <h2>Nothing here runs on trust</h2>
+      </div>
+      <p class="section-desc">Every part of the loop is checkable independently, on-chain.</p>
+    </div>
+    <div class="trust-grid">
+      <div class="tcard">
+        <svg class="ic" viewBox="0 0 24 24" fill="none"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z" stroke="currentColor" stroke-width="1.6"/></svg>
+        <h5>Public burn wallet</h5>
+        <p>The compaction address is pinned and open. Watch tokens arrive and get sent to the dead address in real time.</p>
+      </div>
+      <div class="tcard">
+        <svg class="ic" viewBox="0 0 24 24" fill="none"><path d="M4 12h16M4 6h10M4 18h7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+        <h5>Fixed burn rate</h5>
+        <p>The compaction percentage is set in the contract, not at the team's discretion. Same rate, every cycle.</p>
+      </div>
+      <div class="tcard">
+        <svg class="ic" viewBox="0 0 24 24" fill="none"><rect x="4" y="4" width="16" height="16" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M8 12l2.5 2.5L16 9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <h5>On-chain receipts</h5>
+        <p>Every burn posts a transaction hash to the public log. Nothing is announced without a way to check it.</p>
+      </div>
+      <div class="tcard">
+        <svg class="ic" viewBox="0 0 24 24" fill="none"><path d="M12 2v6M12 16v6M4.9 4.9l4.2 4.2M14.9 14.9l4.2 4.2M2 12h6M16 12h6M4.9 19.1l4.2-4.2M14.9 9.1l4.2-4.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+        <h5>No admin key</h5>
+        <p>The bot only executes the burn function. Nobody holds a key that pauses the loop or redirects funds.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="log">
+  <div class="wrap">
+    <div class="section-head">
+      <div>
+        <div class="section-tag">live feed</div>
+        <h2>Burn log</h2>
+      </div>
+      <p class="section-desc">Every executed cycle, most recent first.</p>
+    </div>
+    <div class="log-card">
+      <div class="log-head-row"><span>Timestamp</span><span>Event</span><span>Amount</span><span>Transaction</span></div>
+      <div class="log-row"><span>—</span><span class="evt">Burn executed</span><span class="amt">— $SHRINK</span><span>—</span></div>
+      <div class="log-row"><span>—</span><span class="evt">Burn executed</span><span class="amt">— $SHRINK</span><span>—</span></div>
+      <div class="log-row"><span>—</span><span class="evt">Burn executed</span><span class="amt">— $SHRINK</span><span>—</span></div>
+      <div class="log-row"><span>—</span><span class="evt">Burn executed</span><span class="amt">— $SHRINK</span><span>—</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="faq" style="border-bottom:none;">
+  <div class="wrap">
+    <div class="section-head">
+      <div>
+        <div class="section-tag">faq</div>
+        <h2>Questions</h2>
+      </div>
+    </div>
+    <div class="faq">
+      <details open>
+        <summary>How much of the supply gets burned?<span class="plus">+</span></summary>
+        <div class="faq-a">70% of total supply is committed to permanent burn. That's not a one-time event and it's not a ceiling — once the 70% mark is crossed, the compaction loop keeps running on the same fixed interval, burning further into the remaining supply.</div>
+      </details>
+      <details>
+        <summary>Does supply ever actually hit zero?<span class="plus">+</span></summary>
+        <div class="faq-a">No. Each cycle burns a fraction of whatever remains, so the curve approaches zero asymptotically. In practice supply becomes negligible long before it reaches true zero.</div>
+      </details>
+      <details>
+        <summary>What's the burn rate?<span class="plus">+</span></summary>
+        <div class="faq-a">A fixed percentage of the pool's holdings, burned on a set interval. The rate is published in the docs and locked into the contract after launch — it isn't adjustable.</div>
+      </details>
+      <details>
+        <summary>Who controls the bot?<span class="plus">+</span></summary>
+        <div class="faq-a">The bot only executes the burn function. There's no admin key that can pause the loop, redirect tokens, or mint new supply.</div>
+      </details>
+      <details>
+        <summary>Can I add tokens to the loop myself?<span class="plus">+</span></summary>
+        <div class="faq-a">Yes — send $SHRINK to the compaction wallet and it gets burned on the next cycle. It doesn't have to come from treasury.</div>
+      </details>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="foot-row">
+      <div class="foot-brand">
+        <span class="mark">
+          <svg viewBox="0 0 600 600" xmlns="http://www.w3.org/2000/svg">
+            <path d="M 70.00 116.00 L 530.00 116.00 L 530.00 484.00 L 235.60 484.00 L 235.60 248.48 L 424.02 248.48 L 424.02 399.21 L 303.43 399.21 L 303.43 302.74 L 380.60 302.74 L 380.60 364.48 L 331.21 364.48 L 331.21 324.97" fill="none" stroke="#4d6357" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="331.21" cy="324.97" r="26" fill="#4d6357"/>
+          </svg>
+        </span>
+        <span>$SHRINK — supply only compacts one way</span>
+      </div>
+      <div class="foot-links">
+        <a href="#">X</a>
+        <a href="#">Docs</a>
+        <a href="#">Contract</a>
+        <a href="#">Burn log</a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
