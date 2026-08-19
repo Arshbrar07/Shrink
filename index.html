@@ -199,7 +199,7 @@
         </div>
         <div class="hero-meta">
           <div class="hm"><div class="v">70%</div><div class="l">committed to permanent burn</div></div>
-          <div class="hm"><div class="v">—</div><div class="l">supply remaining</div></div>
+          <div class="hm"><div class="v" id="heroLiveSupply">—</div><div class="l">supply remaining</div></div>
           <div class="hm"><div class="v">continuous</div><div class="l">burning never stops</div></div>
         </div>
       </div>
@@ -393,10 +393,12 @@ async function updateLiveSupply() {
     if (data.status === 'ok') {
       const supply = Number(data.supply);
 
-      document.getElementById('liveSupply').textContent =
-        supply.toLocaleString(undefined, {
-          maximumFractionDigits: 0
-        });
+     const formattedSupply = supply.toLocaleString(undefined, {
+  maximumFractionDigits: 0
+});
+
+document.getElementById('liveSupply').textContent = formattedSupply;
+document.getElementById('heroLiveSupply').textContent = formattedSupply;
     }
   } catch (error) {
     console.error('Failed to fetch live supply:', error);
