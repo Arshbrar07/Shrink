@@ -6,7 +6,7 @@ export default {
       const MINT = "E714f3oiK3sA8WGBBpmgx7Vkptz7Xh7H9YNWjpkLpump";
 
       try {
-        const rpcResponse = await fetch("https://api.mainnet-beta.solana.com", {
+        const rpcResponse = await fetch(`https://mainnet.helius-rpc.com/?api-key=${env.HELIUS_API_KEY}`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json"
