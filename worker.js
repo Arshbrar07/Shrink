@@ -124,6 +124,121 @@ export default {
       }
     }
 
+
+    // LIVE BURN CYCLES
+if (url.pathname === "/api/cycles") {
+  const BURN_SIGNER = "CiZRcErFSYUbg8nnNEz4ktRQn41D63xnLB1xYjE8i8Z1";
+
+  try {
+    // Get transactions involving the bot/burn signer
+    const sigResponse = await fetch(HELIUS_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: "cycle-signatures",
+        method: "getSignaturesForAddress",
+        params: [
+          BURN_SIGNER,
+          {
+            limit: 1000
+          }
+        ]
+      })
+    });
+
+    const sigData = await sigResponse.json();
+
+    if (sigData.error) {
+      return Response.json({
+        status: "error",
+        error: sigData.error
+      }, { status: 500 });
+    }
+
+    const signatures = sigData.result || [];
+
+    let cycles = 0;
+    let totalBurned = 0;
+    const burns = [];
+
+    // Check each transaction
+    for (const sigInfo of signatures) {
+      if (sigInfo.err) continue;
+
+      const txResponse = await fetch(HELIUS_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: sigInfo.signature,
+          method: "getTransaction",
+          params: [
+            sigInfo.signature,
+            {
+              encoding: "jsonParsed",
+              commitment: "finalized",
+              maxSupportedTransactionVersion: 0
+            }
+          ]
+        })
+      });
+
+      const txData = await txResponse.json();
+      const tx = txData.result;
+
+      if (!tx || tx.meta?.err) continue;
+
+      const instructions =
+        tx.transaction?.message?.instructions || [];
+
+      for (const instruction of instructions) {
+        const parsed = instruction?.parsed;
+
+        if (
+          parsed?.type === "burnChecked" &&
+          parsed?.info?.mint === MINT &&
+          parsed?.info?.authority === BURN_SIGNER
+        ) {
+          const amount =
+            Number(parsed.info.tokenAmount?.uiAmountString || 0);
+
+          cycles++;
+          totalBurned += amount;
+
+          burns.push({
+            signature: sigInfo.signature,
+            amount,
+            blockTime: tx.blockTime
+          });
+
+          // Count each transaction only once
+          break;
+        }
+      }
+    }
+
+    return Response.json({
+      status: "ok",
+      mint: MINT,
+      burnSigner: BURN_SIGNER,
+      cycles,
+      totalBurned,
+      burns
+    });
+
+  } catch (error) {
+    return Response.json({
+      status: "error",
+      error: error.message
+    }, { status: 500 });
+  }
+}
+    
     // TEST BURN TRANSACTION
 if (url.pathname === "/api/test-burn") {
   const TEST_SIGNATURE =
