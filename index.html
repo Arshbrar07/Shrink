@@ -240,7 +240,7 @@
       <div class="stat"><div class="val">70%</div><div class="lbl">PERMANENTLY BURNED SUPPLY TARGET</div></div>
       <div class="stat"><div class="val" id="liveSupply">—</div><div class="lbl">SUPPLY REMAINING</div></div>
       <div class="stat"><div class="val">—</div><div class="lbl">CYCLES EXECUTED</div></div>
-      <div class="stat"><div class="val">—</div><div class="lbl">HOLDERS</div></div>
+      <div class="stat"><div class="val" id="liveHolders">—</div><div class="lbl">HOLDERS</div></div>
     </div>
   </div>
 </section>
@@ -404,11 +404,25 @@ document.getElementById('heroLiveSupply').textContent = formattedSupply;
     console.error('Failed to fetch live supply:', error);
   }
 }
+async function updateLiveHolders() {
+  try {
+    const response = await fetch('/api/holders');
+    const data = await response.json();
 
+    if (data.status === 'ok') {
+      document.getElementById('liveHolders').textContent =
+        Number(data.holders).toLocaleString();
+    }
+  } catch (error) {
+    console.error('Failed to fetch live holders:', error);
+  }
+}
 updateLiveSupply();
+  updateLiveHolders();
 
 // Refresh every 30 seconds
 setInterval(updateLiveSupply, 30000);
+  setInterval(updateLiveHolders, 30000);
 </script>
 </body>
 </html>
