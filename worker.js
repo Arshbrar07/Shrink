@@ -124,6 +124,61 @@ export default {
       }
     }
 
+    // TEST BURN TRANSACTION
+if (url.pathname === "/api/test-burn") {
+  const TEST_SIGNATURE =
+    "2sEk3aFn9kZ4boyCYgCyDv6Tz9D9Wn8bCspKU69WDtFcHwd6PeM4nAwjgQTG7SDWpn6gsxPSLnQXfbKL85PeyGf6";
+
+  try {
+    const rpcResponse = await fetch(HELIUS_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: "test-burn",
+        method: "getTransaction",
+        params: [
+          TEST_SIGNATURE,
+          {
+            encoding: "jsonParsed",
+            commitment: "finalized",
+            maxSupportedTransactionVersion: 0
+          }
+        ]
+      })
+    });
+
+    const data = await rpcResponse.json();
+
+    if (data.error) {
+      return Response.json({
+        status: "error",
+        error: data.error
+      }, { status: 500 });
+    }
+
+    if (!data.result) {
+      return Response.json({
+        status: "error",
+        error: "Transaction not found"
+      }, { status: 404 });
+    }
+
+    return Response.json({
+      status: "ok",
+      signature: TEST_SIGNATURE,
+      transaction: data.result
+    });
+
+  } catch (error) {
+    return Response.json({
+      status: "error",
+      error: error.message
+    }, { status: 500 });
+  }
+}
     return env.ASSETS.fetch(request);
   }
 };
