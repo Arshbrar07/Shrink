@@ -427,7 +427,7 @@ async function updateLiveHolders() {
     console.error('Failed to fetch live holders:', error);
   }
 }
-  async function updateLiveCycles() {
+ async function updateLiveCycles() {
   try {
     const response = await fetch('/api/cycles');
     const data = await response.json();
@@ -435,11 +435,60 @@ async function updateLiveHolders() {
     if (data.status === 'ok') {
       document.getElementById('liveCycles').textContent =
         Number(data.cycles).toLocaleString();
+
+      const burnLogRows = document.getElementById('burnLogRows');
+
+      const latestBurns = (data.burns || [])
+        .sort((a, b) => b.timestamp - a.timestamp)
+        .slice(0, 4);
+
+      burnLogRows.innerHTML = latestBurns.map(burn => {
+        const date = new Date(burn.timestamp * 1000);
+
+        const formattedTime = date.toLocaleString(undefined, {
+          day: '2-digit',
+          month: 'short',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+
+        const formattedAmount = Number(burn.amount).toLocaleString(undefined, {
+          maximumFractionDigits: 6
+        });
+
+        const solscanUrl =
+          `https://solscan.io/tx/${burn.signature}`;
+
+        return `
+          <div class="log-row">
+            <span>${formattedTime}</span>
+            <span class="evt">Burn executed</span>
+            <span class="amt">${formattedAmount} $SHRINK</span>
+            <span>
+              <a href="${solscanUrl}" target="_blank" rel="noopener noreferrer">
+                View ↗
+              </a>
+            </span>
+          </div>
+        `;
+      }).join('');
+
+      if (latestBurns.length === 0) {
+        burnLogRows.innerHTML = `
+          <div class="log-row">
+            <span>—</span>
+            <span class="evt">No burns found</span>
+            <span class="amt">—</span>
+            <span>—</span>
+          </div>
+        `;
+      }
     }
   } catch (error) {
     console.error('Failed to fetch live cycles:', error);
   }
 }
+  
 updateLiveSupply();
   updateLiveHolders();
   updateLiveCycles();
