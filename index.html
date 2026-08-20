@@ -89,7 +89,9 @@
   @keyframes blink{50%{opacity:.2;}}
   .curve-path{stroke-dasharray:900; stroke-dashoffset:900; animation:draw 2.4s ease-out forwards;}
   @keyframes draw{to{stroke-dashoffset:0;}}
-  .curve-dot{offset-path:path('M20,40 C120,42 180,60 260,120 C330,175 360,230 380,290'); animation:travel 3.6s linear infinite; animation-delay:2.4s;}
+ .curve-dot{
+  animation:none;
+}
   @keyframes travel{from{offset-distance:0%;}to{offset-distance:100%;}}
   .chart-axis-label{font-family:var(--mono); font-size:9.5px; fill:var(--text-faint); letter-spacing:0.5px;}
   .chart-foot{display:flex; justify-content:space-between; margin-top:10px; font-family:var(--mono); font-size:10.5px; color:var(--text-faint);}
