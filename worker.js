@@ -3,7 +3,7 @@ export default {
     const url = new URL(request.url);
 
     const MINT = "E714f3oiK3sA8WGBBpmgx7Vkptz7Xh7H9YNWjpkLpump";
-    const BURN_SIGNER = "CiZRcErFSYUbg8nnNEz4ktRQn41D63xnLB1xYjE8i8Z1";
+    const BURN_SIGNER = "9XpUpv1yo2n1DWoQoKWr3Wx3RpihbgBku9vvZ39dm4at";
 
     const HELIUS_URL =
       `https://mainnet.helius-rpc.com/?api-key=${env.HELIUS_API_KEY}`;
