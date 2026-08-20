@@ -434,10 +434,9 @@ updateLiveSupply();
   updateLiveHolders();
   updateLiveCycles();
 
-// Refresh every 30 seconds
-setInterval(updateLiveSupply, 30000);
-  setInterval(updateLiveHolders, 30000);
-  setInterval(updateLiveCycles, 30000);
+setInterval(updateLiveSupply, 60000);       // 1 minute
+setInterval(updateLiveHolders, 900000);     // 15 minutes
+setInterval(updateLiveCycles, 900000);      // 15 minutes
   
 </script>
 </body>
