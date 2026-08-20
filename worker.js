@@ -10,12 +10,14 @@ export default {
 
     const cache = caches.default;
 
-    // Creates a JSON response that Cloudflare/browser can cache
+    // JSON response:
+    // - browser should not hold stale API data
+    // - Cloudflare/shared cache can still cache for the TTL
     function jsonResponse(data, ttl) {
       return new Response(JSON.stringify(data), {
         headers: {
           "Content-Type": "application/json",
-          "Cache-Control": `public, max-age=${ttl}`
+          "Cache-Control": `public, max-age=0, s-maxage=${ttl}`
         }
       });
     }
@@ -25,9 +27,13 @@ export default {
     // Cache: 60 seconds
     // =========================================================
     if (url.pathname === "/api/supply") {
-      const cacheKey = new Request(url.toString(), { method: "GET" });
+      const cacheKey = new Request(
+        "https://shrink-cache.internal/api/supply",
+        { method: "GET" }
+      );
 
       const cached = await cache.match(cacheKey);
+
       if (cached) {
         return cached;
       }
@@ -63,13 +69,16 @@ export default {
           );
         }
 
-        const response = jsonResponse({
-          status: "ok",
-          mint: MINT,
-          supply: data.result.value.uiAmountString,
-          rawSupply: data.result.value.amount,
-          decimals: data.result.value.decimals
-        }, 60);
+        const response = jsonResponse(
+          {
+            status: "ok",
+            mint: MINT,
+            supply: data.result.value.uiAmountString,
+            rawSupply: data.result.value.amount,
+            decimals: data.result.value.decimals
+          },
+          60
+        );
 
         ctx.waitUntil(
           cache.put(cacheKey, response.clone())
@@ -94,9 +103,13 @@ export default {
     // Cache: 15 minutes
     // =========================================================
     if (url.pathname === "/api/holders") {
-      const cacheKey = new Request(url.toString(), { method: "GET" });
+      const cacheKey = new Request(
+        "https://shrink-cache.internal/api/holders",
+        { method: "GET" }
+      );
 
       const cached = await cache.match(cacheKey);
+
       if (cached) {
         return cached;
       }
@@ -163,11 +176,14 @@ export default {
           }
         }
 
-        const response = jsonResponse({
-          status: "ok",
-          mint: MINT,
-          holders: holders.size
-        }, 900);
+        const response = jsonResponse(
+          {
+            status: "ok",
+            mint: MINT,
+            holders: holders.size
+          },
+          900
+        );
 
         ctx.waitUntil(
           cache.put(cacheKey, response.clone())
@@ -189,12 +205,16 @@ export default {
 
     // =========================================================
     // LIVE BURN CYCLES + BURN LOG
-    // Cache: 5 minutes
+    // Cache: 60 seconds
     // =========================================================
     if (url.pathname === "/api/cycles") {
-      const cacheKey = new Request(url.toString(), { method: "GET" });
+      const cacheKey = new Request(
+        "https://shrink-cache.internal/api/cycles",
+        { method: "GET" }
+      );
 
       const cached = await cache.match(cacheKey);
+
       if (cached) {
         return cached;
       }
@@ -221,7 +241,9 @@ export default {
         const burns = [];
 
         for (const tx of transactions) {
-          if (tx.transactionError) continue;
+          if (tx.transactionError) {
+            continue;
+          }
 
           const mintChanges = [];
 
@@ -235,14 +257,20 @@ export default {
 
           const negativeChanges = mintChanges.filter(
             change =>
-              Number(change.rawTokenAmount?.tokenAmount || 0) < 0
+              Number(
+                change.rawTokenAmount?.tokenAmount || 0
+              ) < 0
           );
 
           const positiveChanges = mintChanges.filter(
             change =>
-              Number(change.rawTokenAmount?.tokenAmount || 0) > 0
+              Number(
+                change.rawTokenAmount?.tokenAmount || 0
+              ) > 0
           );
 
+          // Count only transactions where this mint decreases
+          // without a matching positive token balance elsewhere.
           if (
             negativeChanges.length > 0 &&
             positiveChanges.length === 0
@@ -251,11 +279,15 @@ export default {
 
             for (const change of negativeChanges) {
               const rawAmount = Math.abs(
-                Number(change.rawTokenAmount.tokenAmount)
+                Number(
+                  change.rawTokenAmount.tokenAmount
+                )
               );
 
               const decimals =
-                Number(change.rawTokenAmount.decimals || 0);
+                Number(
+                  change.rawTokenAmount.decimals || 0
+                );
 
               burnedThisCycle +=
                 rawAmount / (10 ** decimals);
@@ -272,14 +304,22 @@ export default {
           }
         }
 
-        const response = jsonResponse({
-          status: "ok",
-          mint: MINT,
-          burnSigner: BURN_SIGNER,
-          cycles,
-          totalBurned,
-          burns
-        }, 300);
+        // Make sure newest burns are first
+        burns.sort(
+          (a, b) => Number(b.timestamp) - Number(a.timestamp)
+        );
+
+        const response = jsonResponse(
+          {
+            status: "ok",
+            mint: MINT,
+            burnSigner: BURN_SIGNER,
+            cycles,
+            totalBurned,
+            burns
+          },
+          60
+        );
 
         ctx.waitUntil(
           cache.put(cacheKey, response.clone())
