@@ -218,44 +218,95 @@ export default {
     // =========================================================
     // BURN HISTORY TEST
     // =========================================================
-    if (url.pathname === "/api/cycles") {
-      try {
-        const enhancedUrl =
-          `https://api-mainnet.helius-rpc.com/v0/addresses/${BURN_SIGNER}/transactions?api-key=${env.HELIUS_API_KEY}`;
+   if (url.pathname === "/api/cycles") {
+  try {
+    const enhancedUrl =
+      `https://api-mainnet.helius-rpc.com/v0/addresses/${BURN_SIGNER}/transactions?api-key=${env.HELIUS_API_KEY}`;
 
-        const response = await fetch(enhancedUrl);
+    const response = await fetch(enhancedUrl);
+    const transactions = await response.json();
 
-        const transactions = await response.json();
+    if (!response.ok) {
+      return Response.json(
+        {
+          status: "error",
+          error: transactions
+        },
+        { status: response.status }
+      );
+    }
 
-        if (!response.ok) {
-          return Response.json(
-            {
-              status: "error",
-              error: transactions
-            },
-            { status: response.status }
+    let cycles = 0;
+    let totalBurned = 0;
+    const burns = [];
+
+    for (const tx of transactions) {
+      if (tx.transactionError) continue;
+
+      const mintChanges = [];
+
+      for (const account of tx.accountData || []) {
+        for (const change of account.tokenBalanceChanges || []) {
+          if (change.mint === MINT) {
+            mintChanges.push(change);
+          }
+        }
+      }
+
+      const negativeChanges = mintChanges.filter(
+        change => Number(change.rawTokenAmount?.tokenAmount || 0) < 0
+      );
+
+      const positiveChanges = mintChanges.filter(
+        change => Number(change.rawTokenAmount?.tokenAmount || 0) > 0
+      );
+
+      // A burn reduces the token balance without creating
+      // a matching positive token balance elsewhere.
+      if (negativeChanges.length > 0 && positiveChanges.length === 0) {
+        let burnedThisCycle = 0;
+
+        for (const change of negativeChanges) {
+          const rawAmount = Math.abs(
+            Number(change.rawTokenAmount.tokenAmount)
           );
+
+          const decimals =
+            Number(change.rawTokenAmount.decimals || 0);
+
+          burnedThisCycle += rawAmount / (10 ** decimals);
         }
 
-        return Response.json({
-          status: "ok",
-          mint: MINT,
-          burnSigner: BURN_SIGNER,
-          countReturned: transactions.length,
-          transactions
-        });
+        cycles++;
+        totalBurned += burnedThisCycle;
 
-      } catch (error) {
-        return Response.json(
-          {
-            status: "error",
-            error: error.message
-          },
-          { status: 500 }
-        );
+        burns.push({
+          signature: tx.signature,
+          amount: burnedThisCycle,
+          timestamp: tx.timestamp
+        });
       }
     }
 
+    return Response.json({
+      status: "ok",
+      mint: MINT,
+      burnSigner: BURN_SIGNER,
+      cycles,
+      totalBurned,
+      burns
+    });
+
+  } catch (error) {
+    return Response.json(
+      {
+        status: "error",
+        error: error.message
+      },
+      { status: 500 }
+    );
+  }
+}
 
     // =========================================================
     // WEBSITE STATIC FILES
