@@ -239,7 +239,7 @@
     <div class="stats-grid">
       <div class="stat"><div class="val">70%</div><div class="lbl">PERMANENTLY BURNED SUPPLY TARGET</div></div>
       <div class="stat"><div class="val" id="liveSupply">—</div><div class="lbl">SUPPLY REMAINING</div></div>
-      <div class="stat"><div class="val">—</div><div class="lbl">CYCLES EXECUTED</div></div>
+      <div class="stat"><div class="val" id="liveCycles">—</div><div class="lbl">CYCLES EXECUTED</div></div>
       <div class="stat"><div class="val" id="liveHolders">—</div><div class="lbl">HOLDERS</div></div>
     </div>
   </div>
@@ -417,12 +417,28 @@ async function updateLiveHolders() {
     console.error('Failed to fetch live holders:', error);
   }
 }
+  async function updateLiveCycles() {
+  try {
+    const response = await fetch('/api/cycles');
+    const data = await response.json();
+
+    if (data.status === 'ok') {
+      document.getElementById('liveCycles').textContent =
+        Number(data.cycles).toLocaleString();
+    }
+  } catch (error) {
+    console.error('Failed to fetch live cycles:', error);
+  }
+}
 updateLiveSupply();
   updateLiveHolders();
+  updateLiveCycles();
 
 // Refresh every 30 seconds
 setInterval(updateLiveSupply, 30000);
   setInterval(updateLiveHolders, 30000);
+  setInterval(updateLiveCycles, 30000);
+  
 </script>
 </body>
 </html>
